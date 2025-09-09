@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Creative Portfolio & Project Tracker</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#6ee7b7;--accent-2:#60a5fa}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#071024 0%, #081226 60%);color:#e6eef6}
+    .app{display:flex;min-height:100vh}
+    /* Sidebar */
+    .sidebar{width:260px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:20px;border-right:1px solid rgba(255,255,255,0.03)}
+    .brand{font-weight:700;letter-spacing:0.6px;font-size:18px;margin-bottom:10px}
+    .user{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+    .avatar{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#05202a}
+    .nav{margin-top:12px}
+    .nav a{display:block;padding:10px;border-radius:8px;color:var(--muted);text-decoration:none;margin-bottom:6px}
+    .nav a.active{background:rgba(255,255,255,0.03);color:#fff}
+    /* Main */
+    .main{flex:1;padding:22px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .search{flex:1;max-width:560px;display:flex;gap:8px}
+    .search input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .controls{display:flex;gap:10px;align-items:center}
+    button.btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;padding:10px 14px;border-radius:10px;color:#05202a;font-weight:600;cursor:pointer}
+    /* Dashboard grids */
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px;margin-top:18px}
+    .card{grid-column:span 4;background:var(--card);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+    .card.large{grid-column:span 8}
+    .card h3{margin:0;margin-bottom:8px;font-size:14px}
+    .stat{font-size:22px;font-weight:700}
+    .projects{display:flex;flex-direction:column;gap:12px}
+    .project-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent)}
+    .tag{padding:6px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,0.03)}
+    /* Kanban */
+    .kanban{display:flex;gap:12px}
+    .column{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;min-width:220px}
+    .task{background:#06101a;padding:10px;border-radius:8px;margin-bottom:8px;cursor:grab}
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(rgba(2,6,23,0.6),rgba(2,6,23,0.6));z-index:60}
+    .modal .panel{background:#071126;padding:18px;border-radius:12px;width:520px;border:1px solid rgba(255,255,255,0.03)}
+    .form-row{display:flex;gap:8px;margin-bottom:10px}
+    .form-row input,.form-row textarea,select{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .small{font-size:12px;color:var(--muted)}
+    footer.small{font-size:12px;color:var(--muted);margin-top:18px}
+    /* Responsive */
+    @media (max-width:900px){.sidebar{display:none}.grid{grid-template-columns:repeat(6,1fr)}.card{grid-column:span 6}.card.large{grid-column:span 6}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Mad Amigos — Portfolio Tracker</div>
+      <div class="user">
+        <div class="avatar">MA</div>
+        <div>
+          <div style="font-weight:700">Mr. Kk</div>
+          <div class="small">Animator • VFX • 3D</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="#" class="active" data-view="dashboard">Dashboard</a>
+        <a href="#" data-view="projects">Projects</a>
+        <a href="#" data-view="kanban">Kanban</a>
+        <a href="#" data-view="settings">Settings</a>
+      </nav>
+      <div style="margin-top:18px">
+        <div class="small">Quick stats</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;text-align:center">
+            <div class="small">Projects</div>
+            <div id="stat-projects" style="font-weight:700">0</div>
+          </div>
+          <div style="flex:1;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;text-align:center">
+            <div class="small">Active</div>
+            <div id="stat-active" style="font-weight:700">0</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="search">
+          <input id="q" placeholder="Search projects, tasks, tags..." />
+          <button class="btn" id="new-project">+ New Project</button>
+        </div>
+        <div class="controls">
+          <button id="export" class="btn">Export CSV</button>
+          <div style="width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;cursor:pointer">⚙️</div>
+        </div>
+      </div>
+
+      <section id="view-dashboard">
+        <div class="grid">
+          <div class="card">
+            <h3>Overview</h3>
+            <div style="display:flex;gap:12px;margin-top:8px">
+              <div style="flex:1">
+                <div class="small">Total projects</div>
+                <div class="stat" id="total-projects">0</div>
+              </div>
+              <div style="flex:1">
+                <div class="small">Completed</div>
+                <div class="stat" id="total-completed">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Recent Projects</h3>
+            <div id="recent" class="projects"></div>
+          </div>
+
+          <div class="card large">
+            <h3>Progress (by status)</h3>
+            <canvas id="statusChart" style="width:100%;height:220px"></canvas>
+          </div>
+
+          <div class="card">
+            <h3>Tags</h3>
+            <div id="taglist" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+          </div>
+
+          <div class="card">
+            <h3>Active Tasks</h3>
+            <div id="activeTasks"></div>
+          </div>
+
+          <div class="card">
+            <h3>Notes</h3>
+            <textarea id="quicknotes" placeholder="Quick notes for the day..." style="width:100%;height:120px;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px">
+              <button id="saveNotes" class="btn">Save</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-projects" style="display:none">
+        <h2 style="margin-top:18px">All Projects</h2>
+        <div id="projectList" style="margin-top:12px"></div>
+      </section>
+
+      <section id="view-kanban" style="display:none">
+        <h2 style="margin-top:18px">Kanban Board</h2>
+        <div class="kanban" id="board" style="margin-top:12px">
+          <div class="column" data-col="todo"><h4>To do</h4><div class="tasks" id="col-todo"></div></div>
+          <div class="column" data-col="doing"><h4>Doing</h4><div class="tasks" id="col-doing"></div></div>
+          <div class="column" data-col="done"><h4>Done</h4><div class="tasks" id="col-done"></div></div>
+        </div>
+      </section>
+
+      <section id="view-settings" style="display:none">
+        <h2 style="margin-top:18px">Settings</h2>
+        <div style="margin-top:12px">
+          <label class="small">Theme</label>
+          <select id="themeSelect" style="margin-top:6px"><option value="dark">Dark</option><option value="light">Light (basic)</option></select>
+        </div>
+      </section>
+
+      <footer class="small">Made with ♥ for creative portfolios — Save locally in your browser. </footer>
+    </main>
+  </div>
+
+  <!-- Modal for new/edit project -->
+  <div class="modal" id="modal">
+    <div class="panel">
+      <h3 id="modalTitle">New Project</h3>
+      <div class="form-row">
+        <input id="pname" placeholder="Project name" />
+        <select id="pstage"><option value="planning">Planning</option><option value="production">Production</option><option value="review">Review</option><option value="completed">Completed</option></select>
+      </div>
+      <div class="form-row">
+        <input id="ptags" placeholder="tags (comma separated)" />
+      </div>
+      <div class="form-row">
+        <textarea id="pdesc" placeholder="Short description" style="height:80px"></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button id="closeModal" class="btn" style="background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)">Cancel</button>
+        <button id="saveProject" class="btn">Save Project</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== Basic single-file dashboard app ===== */
+    const state = { projects: [], notes: '', query: '' };
+
+    // load from localStorage
+    function load(){
+      try{
+        const s = localStorage.getItem('madamigos_state');
+        if(s){Object.assign(state, JSON.parse(s));}
+      }catch(e){console.warn(e)}
+    }
+    function save(){localStorage.setItem('madamigos_state', JSON.stringify(state)); render();}
+
+    // sample data initializer
+    function seed(){
+      if(state.projects.length) return;
+      state.projects = [
+        {id:uid(),name:'Kasi Set Rebuild',desc:'Maya environment: temple, gates, buildings',tags:['3D','Maya'],stage:'production',tasks:[{id:uid(),t:'Blockout',status:'todo'},{id:uid(),t:'Retopology',status:'doing'},{id:uid(),t:'Textures',status:'todo'}]},
+        {id:uid(),name:'Demo Car - Karorex X1',desc:'High poly to low poly pipeline',tags:['3D','Hard-Surface'],stage:'review',tasks:[{id:uid(),t:'Shaders',status:'doing'},{id:uid(),t:'Presentation',status:'todo'}]},
+      ];
+      state.notes = 'Daily: refine temple gate silhouette.';
+      save();
+    }
+
+    // helpers
+    function uid(){return 'id_'+Math.random().toString(36).slice(2,9)}
+    function el(q){return document.querySelector(q)}
+    function els(q){return Array.from(document.querySelectorAll(q))}
+
+    // render functions
+    function render(){
+      // stats
+      el('#stat-projects').textContent = state.projects.length;
+      el('#total-projects').textContent = state.projects.length;
+      const completed = state.projects.filter(p=>p.stage==='completed').length;
+      el('#total-completed').textContent = completed;
+      el('#stat-active').textContent = state.projects.filter(p=>p.stage!=='completed').length;
+
+      // recent
+      const recent = el('#recent'); recent.innerHTML='';
+      state.projects.slice(0,6).forEach(p=>{
+        const div = document.createElement('div'); div.className='project-item';
+        div.innerHTML = `<div><strong>${p.name}</strong><div class="small">${p.desc||''}</div></div><div style='text-align:right'><div class='tag'>${p.stage}</div></div>`;
+        recent.appendChild(div);
+      });
+
+      // tags
+      const tagset = new Set(); state.projects.forEach(p=>(p.tags||[]).forEach(t=>tagset.add(t)));
+      el('#taglist').innerHTML=''; [...tagset].forEach(t=>{const b=document.createElement('div');b.className='tag';b.textContent=t;el('#taglist').appendChild(b)});
+
+      // active tasks
+      const activeTasks = el('#activeTasks'); activeTasks.innerHTML='';
+      state.projects.flatMap(p=>p.tasks||[]).filter(t=>t.status!=='done').slice(0,6).forEach(t=>{const d=document.createElement('div');d.className='small';d.style.marginBottom='8px';d.textContent=t.t;activeTasks.appendChild(d)});
+
+      // project list
+      const pl = el('#projectList'); pl.innerHTML='';
+      state.projects.forEach(p=>{
+        const node = document.createElement('div'); node.className='project-item';
+        node.innerHTML = `<div><strong>${p.name}</strong><div class='small'>${p.desc||''}</div></div><div style='display:flex;gap:8px'><div class='tag'>${(p.tags||[]).join(', ')}</div><button data-id='${p.id}' class='edit small' style='background:transparent;border:none;color:var(--muted);cursor:pointer'>Edit</button></div>`;
+        pl.appendChild(node);
+      });
+
+      // kanban columns
+      ['todo','doing','done'].forEach(col=>{const container=el('#col-'+col);container.innerHTML=''; state.projects.flatMap(p=>p.tasks||[]).filter(t=>t.status===col).forEach(t=>{const d=document.createElement('div');d.className='task';d.draggable=true;d.dataset.id=t.id;d.textContent=t.t;container.appendChild(d)})});
+
+      // chart
+      const counts = {planning:0,production:0,review:0,completed:0}; state.projects.forEach(p=>counts[p.stage] = (counts[p.stage]||0)+1);
+      drawChart(Object.values(counts), Object.keys(counts));
+
+      // notes
+      el('#quicknotes').value = state.notes||'';
+
+      // wire up edit buttons
+      els('.edit').forEach(b=>b.onclick = ()=>openEdit(b.dataset.id));
+
+      // draggable tasks
+      setupDragAndDrop();
+    }
+
+    // Chart drawing
+    let chartInstance;
+    function drawChart(data,labels){
+      const ctx = el('#statusChart');
+      if(chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx,{type:'doughnut',data:{labels:labels, datasets:[{data:data}]}, options:{plugins:{legend:{position:'bottom',labels:{color:'#cde3f6'}}}}});
+    }
+
+    // Modal
+    const modal = el('#modal');
+    el('#new-project').onclick = ()=>{openEdit();}
+    el('#closeModal').onclick = ()=>{modal.style.display='none'}
+    el('#saveProject').onclick = ()=>{
+      const id = el('#saveProject').dataset.edit;
+      const name = el('#pname').value.trim(); if(!name) return alert('Enter project name');
+      const stage = el('#pstage').value; const tags = el('#ptags').value.split(',').map(x=>x.trim()).filter(Boolean);
+      const desc = el('#pdesc').value;
+      if(id){ // update
+        const p = state.projects.find(x=>x.id===id); if(!p) return;
+        p.name=name;p.stage=stage;p.tags=tags;p.desc=desc;
+      }else{ // new
+        state.projects.unshift({id:uid(),name,stage,tags,desc,tasks:[]});
+      }
+      modal.style.display='none'; save();
+    }
+
+    function openEdit(id){
+      el('#modalTitle').textContent = id? 'Edit Project':'New Project';
+      if(id){const p=state.projects.find(x=>x.id===id); el('#pname').value=p.name; el('#pdesc').value=p.desc||''; el('#ptags').value=(p.tags||[]).join(', '); el('#pstage').value=p.stage; el('#saveProject').dataset.edit = id;} else {el('#pname').value='';el('#pdesc').value='';el('#ptags').value='';el('#pstage').value='planning'; delete el('#saveProject').dataset.edit}
+      modal.style.display='flex';
+    }
+
+    // search
+    el('#q').addEventListener('input', (e)=>{state.query = e.target.value.toLowerCase(); filterList();});
+    function filterList(){
+      const q = state.query;
+      if(!q) return render();
+      // simple filter: show projects that match
+      const pl = el('#projectList'); pl.innerHTML='';
+      state.projects.filter(p=>p.name.toLowerCase().includes(q)|| (p.tags||[]).join(' ').toLowerCase().includes(q) || (p.desc||'').toLowerCase().includes(q)).forEach(p=>{
+        const node = document.createElement('div'); node.className='project-item';
+        node.innerHTML = `<div><strong>${p.name}</strong><div class='small'>${p.desc||''}</div></div><div class='tag'>${(p.tags||[]).join(', ')}</div>`;
+        pl.appendChild(node);
+      });
+    }
+
+    // Drag & drop tasks between columns
+    function setupDragAndDrop(){
+      const tasks = els('.task'); tasks.forEach(t=>{
+        t.addEventListener('dragstart', e=>{e.dataTransfer.setData('text/plain', t.dataset.id)});
+      });
+      els('.column').forEach(col=>{
+        col.addEventListener('dragover', e=>e.preventDefault());
+        col.addEventListener('drop', e=>{
+          const id = e.dataTransfer.getData('text/plain');
+          const colName = col.dataset.col;
+          // find task across projects
+          for(const p of state.projects){
+            const task = (p.tasks||[]).find(x=>x.id===id);
+            if(task){ task.status = colName; save(); break; }
+          }
+        });
+      });
+    }
+
+    // Export CSV
+    el('#export').onclick = ()=>{
+      const rows = [['id','name','stage','tags','desc']];
+      state.projects.forEach(p=>rows.push([p.id, p.name, p.stage, (p.tags||[]).join(';'), p.desc.replace(/\n/g,' ').slice(0,200)]));
+      const csv = rows.map(r=>r.map(c=>`"${(''+c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='projects.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+
+    // save notes
+    el('#saveNotes').onclick = ()=>{state.notes = el('#quicknotes').value; save(); alert('Notes saved locally')}
+
+    // settings
+    el('#themeSelect').addEventListener('change', e=>{if(e.target.value==='light'){document.body.style.background='#f7fafc';document.body.style.color='#0b1220'} else {document.body.style.background='linear-gradient(180deg,#071024 0%, #081226 60%)';document.body.style.color='#e6eef6'}})
+
+    // nav
+    els('.nav a').forEach(a=>a.addEventListener('click', e=>{e.preventDefault(); els('.nav a').forEach(x=>x.classList.remove('active')); a.classList.add('active'); const v=a.dataset.view; els('#view-dashboard,#view-projects,#view-kanban,#view-settings').forEach(s=>s.style.display='none'); el('#view-'+v).style.display='block'}));
+
+    // initial flow
+    load(); seed(); render();
+
+    // small safety: autosave every 20s
+    setInterval(()=>save(),20000);
+  </script>
+</body>
+</html>
